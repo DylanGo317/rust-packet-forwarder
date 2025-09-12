@@ -1,56 +1,41 @@
-use pnet::transport::{ipv4_packet_iter, transport_channel, TransportChannelType::{Layer3}};
-use std::net::IpAddr;
-use pnet::packet::ip::{IpNextHeaderProtocol, IpNextHeaderProtocols::{Icmp, Tcp, Udp}};
-use std::thread;
+mod ip_listener;
+mod http_test_server;
 
-fn spawn_listener(protocol: IpNextHeaderProtocol) {
-    thread::spawn(move || {
-        let local_host = std::net::Ipv4Addr::new(127,0,0,1);
+use ip_listener::spawn_listener;
+use http_test_server::run_server;
+use pnet::packet::ip::IpNextHeaderProtocols::{Icmp, Tcp, Udp};
+use std::net::{IpAddr, SocketAddr};
+use tokio::runtime::Runtime;
+use clap::Parser;
 
-        let transport_channel_type = Layer3(protocol);
+#[derive(Parser, Debug)]
+struct Args {
+    #[arg(long)]
+    test_server_ip: String,
 
-        let (mut tx, mut rx) = transport_channel(65535, transport_channel_type).expect("transport_channel");
-
-        let mut iter = ipv4_packet_iter(&mut rx);
-
-        loop {
-            match iter.next() {
-                Ok((packet, addr)) => {
-                    if let IpAddr::V6(_ipv6_addr) = addr {
-                        println!("got ipv6 packet: {} -> {}", packet.get_source(), packet.get_destination());
-                        continue;
-                    }
-                    
-                    if let IpAddr::V4(ipv4_addr) = addr {
-                        // Don't forward localhost to avoid infinite loops
-                        if packet.get_source() == local_host && packet.get_destination() == local_host {
-                            continue;
-                        }
-
-                        println!("got ipv4 packet: {} -> {}", packet.get_source(), packet.get_destination());
-
-                        // Forward to intended destination
-                        if let Err(e) = tx.send_to(packet, IpAddr::V4(ipv4_addr)) {
-                            eprintln!("send failed: {e}");
-                        }
-                    }
-                }
-
-                Err(e) => {
-                    eprintln!("error: {e}");
-                }
-            }
-        }
-    });
+    #[arg(long)]
+    port: u16,
 }
-   
 
 fn main() {
+    let args = Args::parse();
+
+    let ip: IpAddr = args.test_server_ip.parse().expect("Invalid IP address");
+    let http_addr = SocketAddr::new(ip, args.port);
+
+
     println!("starting ip packet forwarder");
 
-    spawn_listener(Icmp);
-    spawn_listener(Tcp);
-    spawn_listener(Udp);
+    spawn_listener(Icmp, ip);
+    spawn_listener(Tcp, ip);
+    spawn_listener(Udp, ip);
+
+    // Run HTTP server in a tokio runtime
+    let rt = Runtime::new().unwrap();
+    rt.block_on(async {
+        run_server(http_addr).await.unwrap();
+    });
+
 
     loop { std::thread::sleep(std::time::Duration::from_secs(3600)); }
 }
