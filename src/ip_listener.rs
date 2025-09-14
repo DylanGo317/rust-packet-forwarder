@@ -1,7 +1,8 @@
 use pnet::transport::{ipv4_packet_iter, transport_channel, TransportChannelType::{Layer3}};
 use std::net::{IpAddr, Ipv4Addr};
-use pnet::packet::ip::{IpNextHeaderProtocol};
+use pnet::packet::ip::{IpNextHeaderProtocol, IpNextHeaderProtocols::Tcp};
 use std::thread;
+use crate::tcp_parser::parse_tcp;
 
 pub fn spawn_listener(protocol: IpNextHeaderProtocol, destination_ip: IpAddr) {
     thread::spawn(move || {
@@ -26,13 +27,16 @@ pub fn spawn_listener(protocol: IpNextHeaderProtocol, destination_ip: IpAddr) {
                             continue;
                         }
 
-                        // TODO: Unwrap layer 3 to modify transport layer metadata to indicate if request, response, or neither.
+                        if protocol == Tcp {
+                            parse_tcp(&packet);
+                        }
 
                         println!("got ipv4 packet: {} -> {}", packet.get_source(), packet.get_destination());
-
-                        if let Err(e) = tx.send_to(packet, destination_ip) {
-                            eprintln!("send failed: {e}");
-                        }
+                        
+                        // TODO: implement forwarding later to avoid loops when testing locally
+                        // if let Err(e) = tx.send_to(packet, destination_ip) {
+                        //     eprintln!("send failed: {e}");
+                        // }
                     }
                 }
 

@@ -1,3 +1,4 @@
+mod tcp_parser;
 mod ip_listener;
 mod http_test_server;
 
