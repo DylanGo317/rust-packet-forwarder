@@ -15,10 +15,10 @@ RUN cargo build --release
 FROM ubuntu:22.04
 
 RUN apt-get update && apt-get install -y \
-    libssl-dev ca-certificates iproute2 iputils-ping \
+    libssl-dev ca-certificates iproute2 iputils-ping vim \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy binary from build stage
 COPY --from=builder /forwarder/target/release/packet_forwarder /usr/local/bin/packet_forwarder
 
-CMD ["packet_forwarder"]
+CMD ["/usr/local/bin/packet_forwarder", "--test-server-ip", "127.0.0.1", "--port", "80" ]

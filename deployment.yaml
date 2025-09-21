@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: l3-forwarder
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: l3-forwarder
+  template:
+    metadata:
+      labels:
+        app: l3-forwarder
+    spec:
+      containers:
+      - name: l3-forwarder
+        image: dylanpwgo/l3_forwarder:latest
+        securityContext:
+          capabilities:
+            add: ["NET_RAW"]
+          priveleged: true
+        # hostNetwork: true

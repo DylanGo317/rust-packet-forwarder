@@ -6,6 +6,7 @@ use ip_listener::spawn_listener;
 use http_test_server::run_server;
 use pnet::packet::ip::IpNextHeaderProtocols::{Icmp, Tcp, Udp};
 use std::net::{IpAddr, SocketAddr};
+use std::io::Write;
 use tokio::runtime::Runtime;
 use clap::Parser;
 
@@ -19,13 +20,18 @@ struct Args {
 }
 
 fn main() {
+    println!("Starting IP Packet Forwarder!");
+
+    // Ensure that STDOUT is printed when running in Docker 
+    std::io::stdout().flush().unwrap();
+
     let args = Args::parse();
 
     let ip: IpAddr = args.test_server_ip.parse().expect("Invalid IP address");
     let http_addr = SocketAddr::new(ip, args.port);
 
 
-    println!("starting ip packet forwarder");
+    
 
     spawn_listener(Icmp, ip);
     spawn_listener(Tcp, ip);
